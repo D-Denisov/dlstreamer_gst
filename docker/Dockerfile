@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -312,7 +312,8 @@ RUN apt-get update && apt-get upgrade -y && DEBIAN_FRONTEND=noninteractive apt-g
     libgstreamer1.0-0 gstreamer1.0-dev gstreamer1.0-tools gstreamer1.0-doc gstreamer1.0-plugins-base libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-good  \
     libgstreamer-plugins-good1.0-dev gstreamer1.0-plugins-bad libgstreamer-plugins-bad1.0-dev gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-video \
     libgstrtspserver-1.0-dev python3-gst-1.0 \
-    gstreamer1.0-x gstreamer1.0-alsa gstreamer1.0-gl gstreamer1.0-gtk3 gstreamer1.0-qt5 gstreamer1.0-pulseaudio
+    gstreamer1.0-x gstreamer1.0-alsa gstreamer1.0-gl gstreamer1.0-gtk3 gstreamer1.0-qt5 gstreamer1.0-pulseaudio \
+    && python3 -m pip install numpy==1.19.2 opencv-python==4.2.0.34 pytest==6.0.1 requests
 
 # Copy
 COPY --from=OV-build /opt/intel /opt/intel
@@ -397,8 +398,7 @@ RUN add-apt-repository universe \
     && alien -i /opt/intel/mediasdk/intel-openvino-mediasdk*.rpm
 
 # Source setupvars
-RUN source /opt/intel/openvino/bin/setupvars.sh \
-    && printf "\nsource /opt/intel/openvino/bin/setupvars.sh\n" >> /root/.bashrc
+RUN printf "\nsource /opt/intel/openvino/bin/setupvars.sh\n" >> /root/.bashrc
 
 # Install DL Streamer
 ARG OV_DLSTREAMER_DIR="/opt/intel/openvino/data_processing/dl_streamer"
@@ -415,7 +415,8 @@ ARG ENABLE_RDKAFKA_INSTALLATION=ON
 ARG BUILD_TYPE=Release
 ARG EXTERNAL_GVA_BUILD_FLAGS
 
-RUN mkdir -p dl-streamer/build \
+RUN source /opt/intel/openvino/bin/setupvars.sh && \
+    mkdir -p dl-streamer/build \
     && cd dl-streamer/build \
     && cmake \
         -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
