@@ -39,8 +39,6 @@ RUN tar -xzf *.tgz \
     && ./install.sh -s silent.cfg \
     && ln --symbolic /opt/intel/openvino_${OpenVINO_VERSION}/ /opt/intel/openvino
 
-# Remove GStreamer from dldt
-RUN rm -r /opt/intel/openvino_${OpenVINO_VERSION}/data_processing/gstreamer
 
 # Build GStreamer and other plugins
 FROM ${DOCKER_PRIVATE_REGISTRY}ubuntu:18.04 as gst-build
@@ -89,7 +87,7 @@ ARG PREFIX=/
 ARG LIBDIR=lib/
 ARG LIBEXECDIR=bin/
 
-ARG GST_VERSION=1.18.3
+ARG GST_VERSION=1.16.2
 ARG BUILD_TYPE_MESON=release
 
 ENV GSTREAMER_LIB_DIR=${PREFIX}/${LIBDIR}
@@ -426,7 +424,9 @@ ENV LIBVA_DRIVERS_PATH=/opt/intel/mediasdk/lib64
 ENV LIBVA_DRIVER_NAME=iHD
 
 # Build gstreamer plugin vaapi
-ARG GST_PLUGIN_VAAPI_REPO=https://gstreamer.freedesktop.org/src/gstreamer-vaapi/gstreamer-vaapi-${GST_VERSION}.tar.xz
+#ARG GST_PLUGIN_VAAPI_REPO=https://gstreamer.freedesktop.org/src/gstreamer-vaapi/gstreamer-vaapi-${GST_VERSION}.tar.xz
+# Changed vaapi plugin version to 1.16.0 for best perfomance
+ARG GST_PLUGIN_VAAPI_REPO=https://gstreamer.freedesktop.org/src/gstreamer-vaapi/gstreamer-vaapi-1.16.0.tar.xz
 
 ENV GST_VAAPI_ALL_DRIVERS=1
 
@@ -439,8 +439,8 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # download gstreamer-vaapi
-RUN wget ${GST_PLUGIN_VAAPI_REPO} -O build/src/gstreamer-vaapi-${GST_VERSION}.tar.xz
-RUN tar xvf build/src/gstreamer-vaapi-${GST_VERSION}.tar.xz
+RUN wget ${GST_PLUGIN_VAAPI_REPO} -O build/src/gstreamer-vaapi-1.16.0.tar.xz
+RUN tar xvf build/src/gstreamer-vaapi-1.16.0.tar.xz
 
 # download gstreamer-vaapi patch
 ARG GSTREAMER_VAAPI_PATCH_URL=https://raw.githubusercontent.com/opencv/gst-video-analytics/master/patches/gstreamer-vaapi/vasurface_qdata.patch
@@ -448,9 +448,9 @@ RUN wget ${GSTREAMER_VAAPI_PATCH_URL} -O ${PATCHES_ROOT}/gstreamer-vaapi.patch
 
 # put gstreamer-vaapi license along with the patch
 RUN mkdir ${PATCHES_ROOT}/gstreamer_vaapi_patch_license && \
-    cp gstreamer-vaapi-${GST_VERSION}/COPYING.LIB ${PATCHES_ROOT}/gstreamer_vaapi_patch_license/LICENSE
+    cp gstreamer-vaapi-1.16.0/COPYING.LIB ${PATCHES_ROOT}/gstreamer_vaapi_patch_license/LICENSE
 
-RUN cd gstreamer-vaapi-${GST_VERSION} && \
+RUN cd gstreamer-vaapi-1.16.0 && \
     wget -O - ${GSTREAMER_VAAPI_PATCH_URL} | git apply && \
     PKG_CONFIG_PATH=$PWD/build/pkgconfig:${PKG_CONFIG_PATH} meson \
     -Dexamples=${MESON_GST_TESTS} \
@@ -611,7 +611,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-
     libva-dev libxrandr-dev libudev-dev \
     \
     && rm -rf /var/lib/apt/lists/* \
-    && python3.6 -m pip install numpy==1.19.2 opencv-python==4.2.0.34 pytest==6.0.1
+    && python3.6 -m pip install numpy==1.19.2 opencv-python==4.2.0.34 pytest==6.0.1 requests
 
 # Install
 COPY --from=ov-build /opt/intel /opt/intel
@@ -669,8 +669,7 @@ ENV HDDL_INSTALL_DIR=/opt/intel/openvino/inference_engine/external/hddl
 ENV ngraph_DIR=/opt/intel/openvino/deployment_tools/ngraph/cmake/
 
 # Source setupvars
-RUN source /opt/intel/openvino/bin/setupvars.sh \
-    && printf "\nsource /opt/intel/openvino/bin/setupvars.sh\n" >> /root/.bashrc
+RUN printf "\nsource /opt/intel/openvino/bin/setupvars.sh\n" >> /root/.bashrc
 
 # Install DL Streamer
 ARG OV_DLSTREAMER_DIR="/opt/intel/openvino/data_processing/dl_streamer"
@@ -687,7 +686,8 @@ ARG ENABLE_RDKAFKA_INSTALLATION=ON
 ARG BUILD_TYPE=Release
 ARG EXTERNAL_GVA_BUILD_FLAGS
 
-RUN mkdir -p dl-streamer/build \
+RUN source /opt/intel/openvino/bin/setupvars.sh && \
+    mkdir -p dl-streamer/build \
     && cd dl-streamer/build \
     && cmake \
         -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
